@@ -55,6 +55,20 @@ class AiService {
         .toList();
   }
 
+  /// Models already available on the local server (llama.cpp / Ollama in
+  /// Termux both expose an OpenAI-compatible /models endpoint).
+  Future<List<String>> localModels() async {
+    final base = s.localUrl.trim().replaceAll(RegExp(r'/+$'), '');
+    final res = await http
+        .get(Uri.parse('$base/models'))
+        .timeout(const Duration(seconds: 8));
+    if (res.statusCode != 200) {
+      throw Exception('Could not reach the local server (${res.statusCode}).');
+    }
+    final data = (jsonDecode(utf8.decode(res.bodyBytes))['data'] as List?) ?? [];
+    return data.map((m) => m['id'] as String).toList();
+  }
+
   /// Chat with whichever backend is selected. Both speak the OpenAI format.
   Future<String> chat(List<Map<String, String>> messages,
       {int maxTokens = 8000}) async {

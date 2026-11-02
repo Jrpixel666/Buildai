@@ -559,6 +559,36 @@ class _SettingsTabState extends State<SettingsTab> {
     if (mounted) toast(context, 'Settings saved');
   }
 
+  Future<void> _browseLocalModels() async {
+    s.localUrl = localUrl.text.trim();
+    try {
+      final models = await AiService(s).localModels();
+      if (!mounted) return;
+      if (models.isEmpty) {
+        toast(context, 'The server reported no models.');
+        return;
+      }
+      final picked = await showModalBottomSheet<String>(
+        context: context,
+        builder: (_) => ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            Text('Models on ${s.localUrl}', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 8),
+            ...models.map((m) => ListTile(
+                  title: Text(m),
+                  trailing: m == localModel.text ? const Icon(Icons.check_circle, color: Colors.green) : null,
+                  onTap: () => Navigator.pop(context, m),
+                )),
+          ],
+        ),
+      );
+      if (picked != null) setState(() => localModel.text = picked);
+    } catch (e) {
+      if (mounted) toast(context, '$e');
+    }
+  }
+
   Widget _f(TextEditingController c, String label, {bool secret = false, String? hint}) => Padding(
         padding: const EdgeInsets.only(bottom: 12),
         child: TextField(
@@ -588,8 +618,27 @@ class _SettingsTabState extends State<SettingsTab> {
         _f(model, 'Model id'),
       ] else ...[
         _f(localUrl, 'Local server URL'),
-        _f(localModel, 'Local model name'),
-        const Text('Runs through llama.cpp or Ollama in Termux. See README.', style: TextStyle(fontSize: 12)),
+        Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Expanded(
+              child: TextField(
+                controller: localModel,
+                decoration: const InputDecoration(labelText: 'Local model name', border: OutlineInputBorder()),
+              ),
+            ),
+            const SizedBox(width: 8),
+            IconButton.filledTonal(
+              onPressed: _browseLocalModels,
+              icon: const Icon(Icons.search),
+              tooltip: 'Browse models on the local server',
+            ),
+          ]),
+        ),
+        const Text(
+            'Tap the search button to list models already available on your Termux server, '
+            'or type the name by hand. Runs through llama.cpp or Ollama in Termux. See README.',
+            style: TextStyle(fontSize: 12)),
         const SizedBox(height: 12),
         _f(hf, 'Hugging Face token (for searching)', secret: true),
       ],
